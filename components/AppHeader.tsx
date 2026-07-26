@@ -5,6 +5,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
+import DeleteAccountButton from "./DeleteAccountButton";
 import styles from "./AppHeader.module.css";
 
 export default function AppHeader() {
@@ -64,6 +65,7 @@ export default function AppHeader() {
         >
           로그아웃
         </button>
+        <DeleteAccountButton />
       </div>
     </header>
   );

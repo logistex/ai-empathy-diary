@@ -1,0 +1,99 @@
+/* 회원 탈퇴 트리거 — 눈에 띄지 않게(파괴적이라 유도하지 않음) */
+.trigger {
+  background: none;
+  border: none;
+  padding: 6px 8px;
+  font: inherit;
+  font-size: 0.85rem;
+  color: var(--text-faint);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: color 0.15s ease;
+}
+.trigger:hover {
+  color: var(--danger);
+  text-decoration: underline;
+}
+.trigger:focus-visible {
+  outline: 2px solid var(--danger);
+  outline-offset: 2px;
+}
+
+/* 모달 */
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 50;
+}
+.dialog {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: 24px;
+  width: 100%;
+  max-width: 400px;
+}
+.title {
+  margin: 0 0 10px;
+  font-size: 1.15rem;
+  color: var(--text);
+}
+.desc {
+  margin: 0 0 16px;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: var(--text-soft);
+}
+.desc strong {
+  color: var(--danger);
+}
+.error {
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  font-size: 0.9rem;
+  color: var(--danger);
+  background: var(--danger-soft);
+  border-radius: var(--radius-sm);
+}
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+/* 확인(탈퇴) 버튼 — 위험 강조 */
+.confirm {
+  padding: 9px 16px;
+  font: inherit;
+  font-weight: 600;
+  color: #fff;
+  background: var(--danger);
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+.confirm:hover:not(:disabled) {
+  opacity: 0.9;
+}
+.confirm:focus-visible {
+  outline: 2px solid var(--danger);
+  outline-offset: 2px;
+}
+.confirm:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .trigger,
+  .confirm {
+    transition: none;
+  }
+}

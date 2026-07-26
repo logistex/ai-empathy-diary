@@ -75,6 +75,19 @@ export async function upsertUser(profile: GoogleUserProfile): Promise<number> {
   return Number(rows[0].id);
 }
 
+/**
+ * 회원 탈퇴: 사용자 계정을 삭제한다.
+ * diary_entries 는 FK 의 ON DELETE CASCADE 로 함께 삭제되므로, 이 사용자의 모든 일기가 파기된다.
+ * 되돌릴 수 없다. 삭제된 행 수(0 또는 1)를 돌려준다.
+ */
+export async function deleteUser(user_id: number): Promise<number> {
+  const result = await getPool().query(
+    `DELETE FROM diary.users WHERE id = $1`,
+    [user_id],
+  );
+  return result.rowCount ?? 0;
+}
+
 // ── diary_entries ──────────────────────────────────────────────
 
 interface DiaryRow {
