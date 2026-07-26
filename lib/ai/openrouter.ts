@@ -33,8 +33,9 @@ export const DEFAULT_MODEL = FREE_MODELS[0];
  * 모델 한 번 호출의 타임아웃(ms).
  * 모델마다 1회만 시도하고 여러 모델로 폴백하므로, 전체 지연이 커지지 않도록
  * 단일 호출 타임아웃은 짧게 둔다(429는 즉시 반환되므로 대개 빠르게 다음 모델로 넘어간다).
+ * 무료 모델 5개 × 10초 = 최악 50초로, 라우트의 maxDuration(60초) 안에 들도록 잡았다.
  */
-const TIMEOUT_MS = 15_000;
+const TIMEOUT_MS = 10_000;
 
 export interface ChatMessage {
   role: "system" | "user" | "assistant";

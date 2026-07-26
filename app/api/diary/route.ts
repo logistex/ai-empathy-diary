@@ -6,7 +6,12 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { analyzeEntry } from "@/lib/ai";
-import { insertDiaryEntry, listDiaryEntries } from "@/lib/db";
+import { insertDiaryEntry, listDiaryEntries, updateDiaryAnalysis } from "@/lib/db";
+
+// 무료 모델 폴백 체인이 여러 모델을 순차 시도하면 수십 초가 걸릴 수 있다.
+// Vercel 함수 기본 타임아웃(Hobby 10초)이면 저장 전에 잘리므로 상한을 늘린다.
+// (원문은 분석 전에 먼저 저장하지만, 여유 있게 60초로 둔다.)
+export const maxDuration = 60;
 
 // ── 계약 타입 (docs/API.md 와 일치) ─────────────────────────────
 
@@ -74,36 +79,52 @@ export async function POST(req: Request) {
     );
   }
 
-  // AI 분석: 실패/예외여도 원문은 반드시 저장한다.
-  // 계약대로 emotion/empathy_message 는 null 로 두고 201 로 응답한다(500 아님).
-  let emotion: string | null = null;
-  let empathy_message: string | null = null;
-  let model: string | null = null;
-  let safety: Safety = { flagged: false, resources: [] };
+  // 1) 원문을 "분석보다 먼저" 저장한다. AI가 느리거나(폴백 지연) 실패해도,
+  //    또는 함수가 타임아웃돼도 원문은 절대 유실되지 않는다(계약: 원문 항상 저장).
+  //    DB 저장 실패만 내부 오류(500)로 처리한다.
+  let saved;
   try {
-    const result = await analyzeEntry(content);
-    emotion = result.emotion;
-    empathy_message = result.empathy_message;
-    model = result.model;
-    safety = result.safety;
-  } catch {
-    // AI 실패 → null 유지. 아래에서 원문을 저장하고 201 로 응답한다.
-  }
-
-  // 원문 저장. DB 저장 실패만 내부 오류(500)로 처리한다.
-  try {
-    const saved = await insertDiaryEntry({
+    saved = await insertDiaryEntry({
       user_id: session.user.id,
       content,
-      emotion,
-      empathy_message,
-      model,
+      emotion: null,
+      empathy_message: null,
+      model: null,
     });
-    const response: DiaryEntry = { ...saved, safety };
-    return NextResponse.json(response, { status: 201 });
   } catch {
     return errorResponse(500, "INTERNAL_ERROR", "일기를 저장하지 못했습니다.");
   }
+
+  // 2) AI 분석. analyzeEntry 는 예외를 던지지 않지만 방어적으로 감싼다.
+  //    safety 는 원문 기준으로 계산되므로 분석 실패와 무관하게 채워진다.
+  let result;
+  try {
+    result = await analyzeEntry(content);
+  } catch {
+    const safety: Safety = { flagged: false, resources: [] };
+    result = { emotion: null, empathy_message: null, model: null, safety };
+  }
+
+  // 3) 분석이 성공(emotion 존재)했을 때만 저장된 원문에 결과를 채운다.
+  //    실패면 원문(emotion=null) 그대로 두고, 사용자는 나중에 "다시 분석"할 수 있다.
+  let entry = saved;
+  if (result.emotion !== null) {
+    try {
+      const updated = await updateDiaryAnalysis({
+        id: saved.id,
+        user_id: session.user.id,
+        emotion: result.emotion,
+        empathy_message: result.empathy_message,
+        model: result.model,
+      });
+      if (updated) entry = updated;
+    } catch {
+      // 분석 결과 저장 실패는 치명적이지 않다(원문은 이미 저장됨). 원문 그대로 응답.
+    }
+  }
+
+  const response: DiaryEntry = { ...entry, safety: result.safety };
+  return NextResponse.json(response, { status: 201 });
 }
 
 // ── GET /api/diary (로그인 사용자의 일기 목록, 최신순) ───────────

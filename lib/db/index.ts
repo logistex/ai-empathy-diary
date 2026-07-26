@@ -130,8 +130,11 @@ export async function listDiaryEntries(user_id: number): Promise<DiaryRecord[]> 
 }
 
 /**
- * 재분석 결과를 반영한다. 소유권 검증을 위해 user_id 를 함께 조건으로 건다.
- * 해당 사용자의 일기가 아니면 아무 행도 갱신되지 않고 null 을 돌려준다.
+ * 미분석(emotion IS NULL) 일기에만 분석 결과를 반영한다.
+ * - 소유권 검증을 위해 user_id 를 조건으로 건다.
+ * - `AND emotion IS NULL` 가드로, 이미 분석된 일기를 null 로 덮어써(데이터 다운그레이드)
+ *   좋은 감정/공감/모델이 소실되는 것을 막는다. 동시 중복 재분석도 이 가드로 완화된다.
+ * 해당 조건에 맞는 행이 없으면(타인 것/없음/이미 분석됨) 아무 행도 갱신되지 않고 null 을 돌려준다.
  */
 export async function updateDiaryAnalysis(input: {
   id: number;
@@ -143,21 +146,23 @@ export async function updateDiaryAnalysis(input: {
   const rows = await query<DiaryRow>(
     `UPDATE diary.diary_entries
         SET emotion = $3, empathy_message = $4, model = $5
-      WHERE id = $1 AND user_id = $2
+      WHERE id = $1 AND user_id = $2 AND emotion IS NULL
      RETURNING id, content, emotion, empathy_message, model, created_at`,
     [input.id, input.user_id, input.emotion, input.empathy_message, input.model],
   );
   return rows[0] ? toDiaryRecord(rows[0]) : null;
 }
 
-/** 재분석용으로 특정 사용자의 일기 원문을 가져온다. 없으면 null(소유권 검증 겸용). */
-export async function getDiaryContent(
+/** 특정 사용자의 일기 한 건을 가져온다. 없거나 본인 것이 아니면 null(소유권 검증 겸용). */
+export async function getDiaryEntry(
   id: number,
   user_id: number,
-): Promise<string | null> {
-  const rows = await query<{ content: string }>(
-    `SELECT content FROM diary.diary_entries WHERE id = $1 AND user_id = $2`,
+): Promise<DiaryRecord | null> {
+  const rows = await query<DiaryRow>(
+    `SELECT id, content, emotion, empathy_message, model, created_at
+     FROM diary.diary_entries
+     WHERE id = $1 AND user_id = $2`,
     [id, user_id],
   );
-  return rows[0]?.content ?? null;
+  return rows[0] ? toDiaryRecord(rows[0]) : null;
 }
