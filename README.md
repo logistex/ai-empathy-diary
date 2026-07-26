@@ -16,9 +16,16 @@
 - 한 줄 일기 작성 → AI 감정 분석 + 공감/위로 메시지
 - 사용자별 일기 히스토리 저장·조회
 
-## 개발 상태
+## 배포
 
-🚧 개발 중 — 자세한 계획은 [`docs/PLAN.md`](docs/PLAN.md) 참고.
+- 프로덕션: **https://ai-empathy-diary-two.vercel.app** (Vercel, `git push` 시 자동 배포)
+
+## 문서
+
+- [사용자 매뉴얼](docs/USER_MANUAL.md) — 앱 사용법
+- [개발자 문서](docs/DEVELOPMENT.md) — 셋업·실행·배포·트러블슈팅
+- [API 계약](docs/API.md) · [PRD](docs/PRD.md) · [작업 계획](docs/PLAN.md)
+- 아키텍처·설계 결정: [`CLAUDE.md`](CLAUDE.md)
 
 ## 환경변수
 
