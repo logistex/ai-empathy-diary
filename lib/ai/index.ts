@@ -24,6 +24,8 @@ export interface Safety {
 export interface AnalyzeResult {
   emotion: string | null;
   empathy_message: string | null;
+  /** 감정 분석에 성공한 무료 모델 ID. 실패 시 null. */
+  model: string | null;
   safety: Safety;
 }
 
@@ -123,7 +125,7 @@ export async function analyzeEntry(content: string): Promise<AnalyzeResult> {
   try {
     // 무료 모델 폴백 체인으로 호출한다. 검증 함수로 "JSON 파싱 가능 + 감정 라벨 존재"를
     // 확인해, 파싱 실패한 응답이면 openrouter가 자동으로 다음 무료 모델로 넘어간다.
-    const { content: raw } = await chatCompletionWithFallback(
+    const { content: raw, model } = await chatCompletionWithFallback(
       messages,
       {},
       (text) => {
@@ -134,7 +136,7 @@ export async function analyzeEntry(content: string): Promise<AnalyzeResult> {
     const parsed = parseModelJson(raw);
     if (!parsed) {
       // (검증을 통과했다면 여기 도달하지 않지만) 안전하게 미분석(null) 반환.
-      return { emotion: null, empathy_message: null, safety };
+      return { emotion: null, empathy_message: null, model: null, safety };
     }
 
     const emotion = toLabel(parsed.emotion);
@@ -145,9 +147,10 @@ export async function analyzeEntry(content: string): Promise<AnalyzeResult> {
       empathy += SAFETY_APPENDIX;
     }
 
-    return { emotion, empathy_message: empathy, safety };
+    // 감정 라벨이 나온 경우에만 분석 성공으로 보고 모델명을 기록한다.
+    return { emotion, empathy_message: empathy, model: emotion ? model : null, safety };
   } catch {
     // 네트워크/타임아웃/HTTP 오류 → 미분석(null). 안전 안내는 유지.
-    return { emotion: null, empathy_message: null, safety };
+    return { emotion: null, empathy_message: null, model: null, safety };
   }
 }

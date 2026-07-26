@@ -31,6 +31,8 @@ export interface DiaryEntry {
   content: string;
   emotion: string | null;
   empathy_message: string | null;
+  /** 감정 분석에 성공한 무료 모델 ID. 미분석이면 null. */
+  model: string | null;
   created_at: string; // ISO 8601
   safety?: Safety;
 }
@@ -76,11 +78,13 @@ export async function POST(req: Request) {
   // 계약대로 emotion/empathy_message 는 null 로 두고 201 로 응답한다(500 아님).
   let emotion: string | null = null;
   let empathy_message: string | null = null;
+  let model: string | null = null;
   let safety: Safety = { flagged: false, resources: [] };
   try {
     const result = await analyzeEntry(content);
     emotion = result.emotion;
     empathy_message = result.empathy_message;
+    model = result.model;
     safety = result.safety;
   } catch {
     // AI 실패 → null 유지. 아래에서 원문을 저장하고 201 로 응답한다.
@@ -93,6 +97,7 @@ export async function POST(req: Request) {
       content,
       emotion,
       empathy_message,
+      model,
     });
     const response: DiaryEntry = { ...saved, safety };
     return NextResponse.json(response, { status: 201 });

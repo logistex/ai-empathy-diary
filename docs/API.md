@@ -75,6 +75,7 @@
   "content": "오늘은 하루 종일 마음이 무거웠다.",
   "emotion": "불안",
   "empathy_message": "오늘 많이 힘드셨겠어요. 그 마음, 충분히 그럴 수 있어요.",
+  "model": "google/gemma-4-31b-it:free",
   "created_at": "2026-07-26T12:34:56.000Z",
   "safety": { "flagged": false, "resources": [] }
 }
@@ -86,13 +87,14 @@
 | `content` | string | 저장된 원문 |
 | `emotion` | string \| **null** | 감정 라벨. **AI 실패 시 `null`** |
 | `empathy_message` | string \| **null** | 공감 메시지. **AI 실패 시 `null`** |
+| `model` | string \| **null** | 감정 분석에 성공한 무료 모델 ID(폴백 체인 중 실제 응답 모델). **AI 실패 시 `null`** |
 | `created_at` | string | 생성 시각(ISO 8601) |
 | `safety` | object | 안전 안내(0.2 참조) |
 
 ### 핵심 동작 규칙 (확정)
 
 - **일기 원문은 AI 결과와 무관하게 항상 저장된다.** AI 감정분석/공감 생성이 실패해도 요청은 **`201`로 성공** 처리하며, `emotion`·`empathy_message`를 `null`로 반환한다.
-- `emotion`/`empathy_message`의 `null`은 **"아직 분석되지 않음(재시도 가능)"** 을 의미한다. (재분석/재시도 엔드포인트는 이번 계약 범위 밖 — 향후.)
+- `emotion`/`empathy_message`의 `null`은 **"아직 분석되지 않음(재시도 가능)"** 을 의미한다. 이런 항목은 **재분석 엔드포인트(3장)** 로 다시 분석할 수 있다.
 - 위기 발화 감지 시 `safety.flagged=true`와 `resources`를 함께 반환한다.
 
 ### 에러
@@ -125,13 +127,15 @@
       "content": "오늘은 하루 종일 마음이 무거웠다.",
       "emotion": "불안",
       "empathy_message": "오늘 많이 힘드셨겠어요. 그 마음, 충분히 그럴 수 있어요.",
+      "model": "google/gemma-4-31b-it:free",
       "created_at": "2026-07-26T12:34:56.000Z"
     },
     {
       "id": 41,
       "content": "친구랑 오랜만에 웃었다.",
-      "emotion": "기쁨",
-      "empathy_message": "좋은 하루였네요. 그 웃음이 오래 남길 바라요.",
+      "emotion": null,
+      "empathy_message": null,
+      "model": null,
       "created_at": "2026-07-25T09:00:00.000Z"
     }
   ]
@@ -145,8 +149,11 @@
 | `entries[].content` | string | 원문 |
 | `entries[].emotion` | string \| null | 감정 라벨(미분석 시 null) |
 | `entries[].empathy_message` | string \| null | 공감 메시지(미분석 시 null) |
+| `entries[].model` | string \| null | 분석에 성공한 무료 모델 ID(미분석 시 null) |
 | `entries[].created_at` | string | 생성 시각(ISO 8601) |
 | `entries[].safety` | object \| (생략) | 선택. 목록에서는 생략 가능. 위기 안내는 주로 작성(POST) 시점에 노출한다. |
+
+> `emotion`/`model`이 `null`인 항목은 재분석 엔드포인트(3장)로 다시 분석할 수 있다.
 
 - **정렬**: `created_at` **내림차순(최신 우선)**.
 - **소유권**: 서버가 세션의 `user_id`로 필터링. 타 사용자 데이터는 절대 포함되지 않는다.
@@ -160,7 +167,45 @@
 
 ---
 
-## 3. `/api/auth/*` — 인증 (Auth.js)
+## 3. `POST /api/diary/[id]/reanalyze` — 재분석 (로그인 필요)
+
+감정 분석이 실패해 `emotion`/`model`이 `null`인 일기를, 저장된 원문으로 **다시 분석**해 `emotion`·`empathy_message`·`model`을 갱신한다. (프런트의 "다시 분석" 버튼용.)
+
+### 요청
+
+- 경로 파라미터 `id`: 대상 일기 ID. 바디 없음.
+
+### 응답 `200 OK`
+
+갱신된 일기 항목을 `POST /api/diary`와 동일한 형태로 반환한다(`safety` 포함).
+
+```json
+{
+  "id": 41,
+  "content": "친구랑 오랜만에 웃었다.",
+  "emotion": "기쁨",
+  "empathy_message": "좋은 하루였네요. 그 웃음이 오래 남길 바라요.",
+  "model": "google/gemma-4-26b-a4b-it:free",
+  "created_at": "2026-07-25T09:00:00.000Z",
+  "safety": { "flagged": false, "resources": [] }
+}
+```
+
+- 재분석도 실패하면(모든 무료 모델 실패) `emotion`/`model`은 여전히 `null`로 갱신되며 응답은 `200`이다. 사용자는 다시 시도할 수 있다.
+- **소유권**: 본인 일기가 아니면 갱신하지 않는다.
+
+### 에러
+
+| 상황 | HTTP | `code` |
+|---|---|---|
+| 미로그인 | 401 | `UNAUTHORIZED` |
+| 잘못된 `id` | 400 | `VALIDATION_ERROR` |
+| 존재하지 않거나 본인 일기가 아님 | 404 | `NOT_FOUND` |
+| DB 갱신 실패 등 내부 오류 | 500 | `INTERNAL_ERROR` |
+
+---
+
+## 4. `/api/auth/*` — 인증 (Auth.js)
 
 Auth.js(NextAuth v5)가 제공하는 표준 라우트. 구글 OAuth · **JWT 세션**.
 
@@ -184,7 +229,7 @@ Auth.js(NextAuth v5)가 제공하는 표준 라우트. 구글 OAuth · **JWT 세
 
 ---
 
-## 4. 범위 밖 (이번 계약에 없음)
+## 5. 범위 밖 (이번 계약에 없음)
 
-- **일기 삭제** `DELETE /api/diary/:id` — P1. 1단계 계약에 **포함하지 않는다**(작성/조회만).
-- 일기 수정, 재분석/재시도 엔드포인트, 페이지네이션, 통계/차트 API — 향후.
+- **일기 삭제** `DELETE /api/diary/:id` — P1. 아직 **포함하지 않는다**(작성/조회/재분석만).
+- 일기 수정, 페이지네이션, 통계/차트 API — 향후.

@@ -49,6 +49,8 @@ export interface DiaryRecord {
   content: string;
   emotion: string | null;
   empathy_message: string | null;
+  /** 감정 분석에 성공한 무료 모델 ID. 미분석이면 null. */
+  model: string | null;
   created_at: string; // ISO 8601 (UTC)
 }
 
@@ -80,6 +82,7 @@ interface DiaryRow {
   content: string;
   emotion: string | null;
   empathy_message: string | null;
+  model: string | null;
   created_at: Date;
 }
 
@@ -89,6 +92,7 @@ function toDiaryRecord(row: DiaryRow): DiaryRecord {
     content: row.content,
     emotion: row.emotion,
     empathy_message: row.empathy_message,
+    model: row.model,
     created_at: row.created_at.toISOString(),
   };
 }
@@ -102,12 +106,13 @@ export async function insertDiaryEntry(input: {
   content: string;
   emotion: string | null;
   empathy_message: string | null;
+  model: string | null;
 }): Promise<DiaryRecord> {
   const rows = await query<DiaryRow>(
-    `INSERT INTO diary.diary_entries (user_id, content, emotion, empathy_message)
-     VALUES ($1, $2, $3, $4)
-     RETURNING id, content, emotion, empathy_message, created_at`,
-    [input.user_id, input.content, input.emotion, input.empathy_message],
+    `INSERT INTO diary.diary_entries (user_id, content, emotion, empathy_message, model)
+     VALUES ($1, $2, $3, $4, $5)
+     RETURNING id, content, emotion, empathy_message, model, created_at`,
+    [input.user_id, input.content, input.emotion, input.empathy_message, input.model],
   );
   return toDiaryRecord(rows[0]);
 }
@@ -115,11 +120,44 @@ export async function insertDiaryEntry(input: {
 /** 특정 사용자의 일기만 최신순(created_at DESC)으로 조회한다. 없으면 빈 배열. */
 export async function listDiaryEntries(user_id: number): Promise<DiaryRecord[]> {
   const rows = await query<DiaryRow>(
-    `SELECT id, content, emotion, empathy_message, created_at
+    `SELECT id, content, emotion, empathy_message, model, created_at
      FROM diary.diary_entries
      WHERE user_id = $1
      ORDER BY created_at DESC`,
     [user_id],
   );
   return rows.map(toDiaryRecord);
+}
+
+/**
+ * 재분석 결과를 반영한다. 소유권 검증을 위해 user_id 를 함께 조건으로 건다.
+ * 해당 사용자의 일기가 아니면 아무 행도 갱신되지 않고 null 을 돌려준다.
+ */
+export async function updateDiaryAnalysis(input: {
+  id: number;
+  user_id: number;
+  emotion: string | null;
+  empathy_message: string | null;
+  model: string | null;
+}): Promise<DiaryRecord | null> {
+  const rows = await query<DiaryRow>(
+    `UPDATE diary.diary_entries
+        SET emotion = $3, empathy_message = $4, model = $5
+      WHERE id = $1 AND user_id = $2
+     RETURNING id, content, emotion, empathy_message, model, created_at`,
+    [input.id, input.user_id, input.emotion, input.empathy_message, input.model],
+  );
+  return rows[0] ? toDiaryRecord(rows[0]) : null;
+}
+
+/** 재분석용으로 특정 사용자의 일기 원문을 가져온다. 없으면 null(소유권 검증 겸용). */
+export async function getDiaryContent(
+  id: number,
+  user_id: number,
+): Promise<string | null> {
+  const rows = await query<{ content: string }>(
+    `SELECT content FROM diary.diary_entries WHERE id = $1 AND user_id = $2`,
+    [id, user_id],
+  );
+  return rows[0]?.content ?? null;
 }
