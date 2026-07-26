@@ -1,9 +1,12 @@
 // /api/diary — 일기 작성(POST) / 목록 조회(GET)
 //
-// ⚠️ 1단계 스텁: 계약(docs/API.md)에 맞는 타입과 빈/자리표시 응답만 둔다.
-//    실제 인증 검증·DB 저장/조회·OpenRouter(AI) 연동은 2A/2B 단계에서 구현한다.
+// 계약: docs/API.md. 로그인 필요, 소유권은 세션의 내부 user_id 로 검증한다.
+// AI 감정분석/공감 생성은 2B(lib/ai)가 제공하는 analyzeEntry 로 위임한다.
 
 import { NextResponse } from "next/server";
+import { auth } from "@/auth";
+import { analyzeEntry } from "@/lib/ai";
+import { insertDiaryEntry, listDiaryEntries } from "@/lib/db";
 
 // ── 계약 타입 (docs/API.md 와 일치) ─────────────────────────────
 
@@ -36,30 +39,79 @@ interface CreateDiaryRequest {
   content: string;
 }
 
-// ── POST /api/diary (일기 작성, 로그인 필요) ────────────────────
-export async function POST() {
-  // TODO(2A): auth()로 세션 확인 → 미로그인 시 401.
-  // TODO(2A): body.content 검증(빈 값 금지 / 최대 MAX_CONTENT_LENGTH 자) → 위반 시 400.
-  // TODO(2A): users 소유의 diary_entries 에 원문 저장(원문은 AI 실패와 무관하게 항상 저장).
-  // TODO(2B): OpenRouter(gemma) 호출로 emotion/empathy_message 생성, safety 판정.
-  //           AI 실패 시 emotion/empathy_message 는 null 로 두고 201 응답(재시도 가능).
-  void (0 as unknown as CreateDiaryRequest); // 계약 타입 참조용(미사용 경고 방지)
+// ── 공통 에러 응답 헬퍼 (계약 0.1) ─────────────────────────────
+function errorResponse(status: number, code: string, message: string) {
+  return NextResponse.json({ error: { code, message } }, { status });
+}
 
-  const stub: DiaryEntry = {
-    id: 0,
-    content: "",
-    emotion: null,
-    empathy_message: null,
-    created_at: new Date().toISOString(),
-    safety: { flagged: false, resources: [] },
-  };
-  return NextResponse.json(stub, { status: 201 });
+// ── POST /api/diary (일기 작성, 로그인 필요) ────────────────────
+export async function POST(req: Request) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return errorResponse(401, "UNAUTHORIZED", "로그인이 필요합니다.");
+  }
+
+  // JSON 파싱 실패는 형식 오류(400)로 처리한다.
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
+    return errorResponse(400, "VALIDATION_ERROR", "요청 본문(JSON)을 해석할 수 없습니다.");
+  }
+
+  // content 검증: 문자열이어야 하며, 트림 후 1~500자(글자 수/문자 단위).
+  const raw = (body as CreateDiaryRequest | null)?.content;
+  const content = typeof raw === "string" ? raw.trim() : null;
+  // char_length(DB CHECK)와 동일하게 코드포인트 기준으로 길이를 센다.
+  const length = content === null ? 0 : [...content].length;
+  if (content === null || length < 1 || length > MAX_CONTENT_LENGTH) {
+    return errorResponse(
+      400,
+      "VALIDATION_ERROR",
+      `일기 내용은 1자 이상 ${MAX_CONTENT_LENGTH}자 이하여야 합니다.`,
+    );
+  }
+
+  // AI 분석: 실패/예외여도 원문은 반드시 저장한다.
+  // 계약대로 emotion/empathy_message 는 null 로 두고 201 로 응답한다(500 아님).
+  let emotion: string | null = null;
+  let empathy_message: string | null = null;
+  let safety: Safety = { flagged: false, resources: [] };
+  try {
+    const result = await analyzeEntry(content);
+    emotion = result.emotion;
+    empathy_message = result.empathy_message;
+    safety = result.safety;
+  } catch {
+    // AI 실패 → null 유지. 아래에서 원문을 저장하고 201 로 응답한다.
+  }
+
+  // 원문 저장. DB 저장 실패만 내부 오류(500)로 처리한다.
+  try {
+    const saved = await insertDiaryEntry({
+      user_id: session.user.id,
+      content,
+      emotion,
+      empathy_message,
+    });
+    const response: DiaryEntry = { ...saved, safety };
+    return NextResponse.json(response, { status: 201 });
+  } catch {
+    return errorResponse(500, "INTERNAL_ERROR", "일기를 저장하지 못했습니다.");
+  }
 }
 
 // ── GET /api/diary (로그인 사용자의 일기 목록, 최신순) ───────────
 export async function GET() {
-  // TODO(2A): auth()로 세션 확인 → 미로그인 시 401.
-  // TODO(2A): 현재 사용자(user_id) 소유 일기만 created_at DESC 로 조회.
-  const entries: DiaryEntry[] = [];
-  return NextResponse.json({ entries }, { status: 200 });
+  const session = await auth();
+  if (!session?.user?.id) {
+    return errorResponse(401, "UNAUTHORIZED", "로그인이 필요합니다.");
+  }
+
+  try {
+    const entries = await listDiaryEntries(session.user.id);
+    return NextResponse.json({ entries }, { status: 200 });
+  } catch {
+    return errorResponse(500, "INTERNAL_ERROR", "일기 목록을 불러오지 못했습니다.");
+  }
 }
