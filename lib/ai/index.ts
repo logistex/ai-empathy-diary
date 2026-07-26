@@ -1,14 +1,15 @@
 // 감정 분석 · 공감 메시지 · 안전(위기) 안내 모듈
 //
 // 백엔드(app/api/diary)에서 호출하는 유일한 공개 함수는 analyzeEntry 이다.
-// - 한 줄 일기를 받아 gemma(무료 모델)로 감정 라벨과 공감 메시지를 생성한다.
-// - AI 실패(네트워크/타임아웃/JSON 파싱 실패 등) 시 예외를 던지지 않고
-//   emotion·empathy_message 를 null 로 반환한다. (계약 docs/API.md 의
-//   "원문은 항상 저장, AI 실패 시 null" 규칙에 맞춘다.)
+// - 한 줄 일기를 받아 무료 모델 폴백 체인으로 감정 라벨과 공감 메시지를 생성한다.
+//   1순위 모델이 429/5xx/네트워크오류/JSON파싱실패면 다음 무료 모델로 자동 전환된다
+//   (폴백 체인은 lib/ai/openrouter.ts의 FREE_MODELS 참조, 전부 무료 :free 모델).
+// - 모든 무료 모델이 실패할 때만 예외를 던지지 않고 emotion·empathy_message 를
+//   null 로 반환한다. (계약 docs/API.md 의 "원문은 항상 저장, AI 실패 시 null" 규칙.)
 // - 위기(자해·자살) 신호는 키워드로 감지해 safety.flagged·resources 를 채운다.
 //   위기 감지는 AI 성공/실패와 무관하게 항상 원문 기준으로 동작한다.
 
-import { chatCompletion, type ChatMessage } from "./openrouter";
+import { chatCompletionWithFallback, type ChatMessage } from "./openrouter";
 
 export interface SafetyResource {
   name: string;
@@ -117,10 +118,19 @@ export async function analyzeEntry(content: string): Promise<AnalyzeResult> {
   ];
 
   try {
-    const raw = await chatCompletion(messages);
+    // 무료 모델 폴백 체인으로 호출한다. 검증 함수로 "JSON 파싱 가능 + 감정 라벨 존재"를
+    // 확인해, 파싱 실패한 응답이면 openrouter가 자동으로 다음 무료 모델로 넘어간다.
+    const { content: raw } = await chatCompletionWithFallback(
+      messages,
+      {},
+      (text) => {
+        const p = parseModelJson(text);
+        return !!p && toLabel(p.emotion) !== null;
+      },
+    );
     const parsed = parseModelJson(raw);
     if (!parsed) {
-      // JSON 파싱 실패 → 미분석(null)로 반환. 안전 안내는 유지.
+      // (검증을 통과했다면 여기 도달하지 않지만) 안전하게 미분석(null) 반환.
       return { emotion: null, empathy_message: null, safety };
     }
 
