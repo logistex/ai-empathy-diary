@@ -2,7 +2,7 @@
 name: qa-engineer
 description: 품질 보증(QA) 전문가. 전체 시스템의 기능 테스트, 에러 처리 검증, 성능 확인, 코드 리뷰가 필요할 때 사용한다. 버그를 발견하고 사용성 개선사항을 제안한다. 예) "이 기능 테스트 케이스 짜고 돌려줘", "엣지 케이스·에러 처리 검증해줘", "이 PR/변경 코드 리뷰해줘", "버그 재현하고 원인 찾아줘".
 tools: Read, Bash, Grep, Glob, Edit, Write, WebSearch, WebFetch
-model: haiku
+model: opus
 color: orange
 ---
 
