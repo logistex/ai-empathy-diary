@@ -19,6 +19,8 @@ export interface DiaryResult {
   content: string;
   emotion: string | null;
   empathy_message: string | null;
+  // 감정 분석에 성공한 무료 모델 ID(폴백 체인 중 실제 응답 모델). AI 실패 시 null.
+  model: string | null;
   created_at: string;
   safety: Safety;
 }
@@ -29,6 +31,8 @@ export interface DiaryEntry {
   content: string;
   emotion: string | null;
   empathy_message: string | null;
+  // 분석에 성공한 무료 모델 ID(미분석 시 null).
+  model: string | null;
   created_at: string;
   safety?: Safety;
 }

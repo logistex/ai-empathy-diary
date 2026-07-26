@@ -8,7 +8,12 @@ import Link from "next/link";
 import AuthGuard from "@/components/AuthGuard";
 import AppHeader from "@/components/AppHeader";
 import DiaryEntryCard from "@/components/DiaryEntryCard";
-import type { DiaryEntry, DiaryListResponse, ApiError } from "@/components/types";
+import type {
+  DiaryEntry,
+  DiaryResult,
+  DiaryListResponse,
+  ApiError,
+} from "@/components/types";
 import styles from "./page.module.css";
 
 type Phase = "loading" | "success" | "error";
@@ -42,6 +47,13 @@ function HistoryView() {
       setErrorMsg("네트워크 연결을 확인해 주세요.");
       setPhase("error");
     }
+  }, []);
+
+  // "다시 분석" 성공/갱신 시 해당 항목을 그 자리에서 교체한다.
+  const handleReanalyzed = useCallback((updated: DiaryResult) => {
+    setEntries((prev) =>
+      prev.map((e) => (e.id === updated.id ? updated : e))
+    );
   }, []);
 
   // 재시도: 로딩 표시 후 다시 조회(이벤트 핸들러이므로 동기 setState 허용).
@@ -109,7 +121,12 @@ function HistoryView() {
       {phase === "success" && entries.length > 0 && (
         <div className={styles.list}>
           {entries.map((entry) => (
-            <DiaryEntryCard key={entry.id} entry={entry} showDate />
+            <DiaryEntryCard
+              key={entry.id}
+              entry={entry}
+              showDate
+              onReanalyzed={handleReanalyzed}
+            />
           ))}
         </div>
       )}

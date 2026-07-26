@@ -83,7 +83,7 @@ function WriteView() {
       {/* 성공 결과 카드 */}
       {phase === "success" && result && (
         <section className={styles.resultBlock} aria-live="polite">
-          <DiaryEntryCard entry={result} highlight />
+          <DiaryEntryCard entry={result} highlight onReanalyzed={setResult} />
           <div className={styles.resultActions}>
             <button
               type="button"

@@ -43,6 +43,30 @@
   font-weight: 600;
 }
 
+/* 감정 뱃지 + 분석 모델 캡션 묶음(헤더 우측) */
+.meta {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px 10px;
+  flex-wrap: wrap;
+}
+
+/* 어떤 무료 모델이 분석했는지 은은하게 표시 */
+.model {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-faint);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 3px 9px;
+  white-space: nowrap;
+}
+
 .content {
   font-size: 1.12rem;
   line-height: 1.7;
@@ -63,12 +87,32 @@
 }
 
 .pending {
-  margin-top: 16px;
   padding: 14px 16px;
   border-radius: var(--radius);
   background: var(--surface-2);
   border: 1px dashed var(--border-strong);
   color: var(--text-soft);
   font-size: 0.92rem;
+  line-height: 1.6;
+}
+
+/* 재분석 블록(안내 + 버튼 + 에러) */
+.reanalyze {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.reanalyzeActions {
+  display: flex;
+}
+
+.reError {
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--danger-soft);
+  color: var(--danger);
+  font-size: 0.9rem;
   line-height: 1.6;
 }
