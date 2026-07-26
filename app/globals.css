@@ -1,17 +1,80 @@
+/* ===========================================================
+   AI 공감 다이어리 — 전역 스타일
+   톤: 따뜻하고 편안한 일기장 (크림/베이지/파스텔, 넉넉한 여백, 둥근 모서리)
+   =========================================================== */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* 배경/표면 — 따뜻한 크림·베이지 */
+  --bg: #faf4ea;
+  --bg-soft: #f3e9da;
+  --surface: #fffdf8;
+  --surface-2: #f7efe2;
+
+  /* 텍스트 — 부드러운 갈색 계열 (충분한 대비) */
+  --text: #4a3f33;
+  --text-soft: #7c6f5f;
+  --text-faint: #a89c8b;
+
+  /* 강조 — 은은한 테라코타/로즈 */
+  --accent: #c67b5c;
+  --accent-strong: #b0673f;
+  --accent-soft: #f6e3d8;
+
+  /* 보조 파스텔 */
+  --sage: #7f9a7f;
+  --sage-soft: #e7efe3;
+
+  /* 경계/그림자 */
+  --border: #ecdfcd;
+  --border-strong: #e0cfb6;
+  --shadow-sm: 0 1px 2px rgba(74, 63, 51, 0.06);
+  --shadow-md: 0 6px 20px rgba(74, 63, 51, 0.08);
+  --shadow-lg: 0 12px 34px rgba(74, 63, 51, 0.12);
+
+  /* 상태색 */
+  --danger: #b4553f;
+  --danger-soft: #f7e3dc;
+  --success: #4f7a53;
+
+  /* 형태 */
+  --radius-sm: 10px;
+  --radius: 16px;
+  --radius-lg: 24px;
+  --maxw: 680px;
+
+  --font-sans: "Pretendard", -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo",
+    "Malgun Gothic", "Noto Sans KR", system-ui, sans-serif;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --bg: #241f1a;
+    --bg-soft: #2c2620;
+    --surface: #302a23;
+    --surface-2: #383026;
+    --text: #f3ead9;
+    --text-soft: #cdbfa8;
+    --text-faint: #9a8c76;
+    --accent: #e0997a;
+    --accent-strong: #eaa98c;
+    --accent-soft: #43352b;
+    --sage: #a7c0a5;
+    --sage-soft: #33402f;
+    --border: #453b2f;
+    --border-strong: #56493a;
+    --danger: #e79279;
+    --danger-soft: #45302a;
+    --success: #9cc09f;
+  }
+  html {
+    color-scheme: dark;
   }
 }
 
-html {
-  height: 100%;
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
 
 html,
@@ -20,21 +83,24 @@ body {
   overflow-x: hidden;
 }
 
-body {
-  min-height: 100%;
-  display: flex;
-  flex-direction: column;
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+html {
+  height: 100%;
 }
 
-* {
-  box-sizing: border-box;
-  padding: 0;
-  margin: 0;
+body {
+  min-height: 100%;
+  color: var(--text);
+  background: var(--bg);
+  background-image: radial-gradient(
+      1200px 600px at 50% -10%,
+      var(--bg-soft),
+      transparent 60%
+    );
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 a {
@@ -42,8 +108,89 @@ a {
   text-decoration: none;
 }
 
-@media (prefers-color-scheme: dark) {
-  html {
-    color-scheme: dark;
+/* 키보드 포커스 가시화 (접근성) */
+:where(a, button, input, textarea, [tabindex]):focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* 화면에서만 숨기고 스크린리더에는 노출 */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* 페이지 공통 컨테이너 */
+.page-shell {
+  width: 100%;
+  max-width: var(--maxw);
+  margin: 0 auto;
+  padding: 24px 20px 72px;
+}
+
+/* 공통 버튼 */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  padding: 12px 20px;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.18s ease, transform 0.06s ease, box-shadow 0.18s ease;
+}
+.btn:active {
+  transform: translateY(1px);
+}
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+.btn-primary {
+  background: var(--accent);
+  color: #fff;
+  box-shadow: var(--shadow-sm);
+}
+.btn-primary:hover:not(:disabled) {
+  background: var(--accent-strong);
+}
+.btn-ghost {
+  background: transparent;
+  color: var(--text-soft);
+  border-color: var(--border-strong);
+}
+.btn-ghost:hover:not(:disabled) {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+/* 로딩 스피너 */
+.spinner {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 3px solid var(--accent-soft);
+  border-top-color: var(--accent);
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation-duration: 1.8s;
   }
 }

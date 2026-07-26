@@ -1,0 +1,69 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px 4px 10px;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  line-height: 1.4;
+  background: var(--surface-2);
+  color: var(--text-soft);
+  border: 1px solid var(--border);
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.9;
+}
+
+/* 감정별 톤 — 파스텔 배경 + 짙은 글자로 대비 확보 */
+.badge[data-tone="joy"] {
+  background: #fdf3d6;
+  color: #8a6d15;
+  border-color: #f2e2ac;
+}
+.badge[data-tone="love"] {
+  background: #fbe4e6;
+  color: #a4485a;
+  border-color: #f3ccd1;
+}
+.badge[data-tone="calm"] {
+  background: var(--sage-soft);
+  color: #476a4b;
+  border-color: #cfe0cb;
+}
+.badge[data-tone="sad"] {
+  background: #e3ecf5;
+  color: #3f6089;
+  border-color: #cbdbec;
+}
+.badge[data-tone="anxious"] {
+  background: #ece6f6;
+  color: #5f4a92;
+  border-color: #dccff0;
+}
+.badge[data-tone="anger"] {
+  background: #fbe0d6;
+  color: #a4503a;
+  border-color: #f2ccbc;
+}
+.badge[data-tone="tired"] {
+  background: #eae6e0;
+  color: #6e6255;
+  border-color: #ddd5c9;
+}
+.badge[data-tone="lonely"] {
+  background: #e6e9ee;
+  color: #55606f;
+  border-color: #d3d9e1;
+}
+
+@media (prefers-color-scheme: dark) {
+  .badge {
+    filter: saturate(0.85) brightness(0.9);
+  }
+}
