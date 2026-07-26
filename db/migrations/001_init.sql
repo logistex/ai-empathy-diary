@@ -7,12 +7,16 @@
 
 BEGIN;
 
+-- 전용 스키마: 같은 DB를 쓰는 다른 앱(예: recipe4fridge의 public.users)과 격리하기 위해
+-- 이 앱의 테이블은 모두 diary 스키마 아래에 둔다.
+CREATE SCHEMA IF NOT EXISTS diary;
+
 -- ─────────────────────────────────────────────────────────────
 -- users : 구글 로그인 사용자
 --  - google_sub : 구글 OAuth의 안정적 고유 식별자(sub). 로그인 시 upsert 기준 키.
 --  - email/name/image : 프로필 정보(로그인마다 갱신될 수 있음).
 -- ─────────────────────────────────────────────────────────────
-CREATE TABLE IF NOT EXISTS users (
+CREATE TABLE IF NOT EXISTS diary.users (
   id          BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   google_sub  TEXT        NOT NULL UNIQUE,
   email       TEXT,
@@ -30,9 +34,9 @@ CREATE TABLE IF NOT EXISTS users (
 --  - 안전(safety) 플래그는 응답 시점에 파생되는 값이며 별도 컬럼으로 저장하지 않는다
 --    (데이터 모델 확정본 유지). 자세한 내용은 docs/API.md 참고.
 -- ─────────────────────────────────────────────────────────────
-CREATE TABLE IF NOT EXISTS diary_entries (
+CREATE TABLE IF NOT EXISTS diary.diary_entries (
   id               BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  user_id          BIGINT      NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  user_id          BIGINT      NOT NULL REFERENCES diary.users(id) ON DELETE CASCADE,
   content          TEXT        NOT NULL CHECK (char_length(content) BETWEEN 1 AND 500),
   emotion          TEXT,
   empathy_message  TEXT,
@@ -41,6 +45,6 @@ CREATE TABLE IF NOT EXISTS diary_entries (
 
 -- 히스토리 조회(사용자별 최신순)를 위한 인덱스
 CREATE INDEX IF NOT EXISTS idx_diary_entries_user_created
-  ON diary_entries (user_id, created_at DESC);
+  ON diary.diary_entries (user_id, created_at DESC);
 
 COMMIT;

@@ -1,7 +1,7 @@
 // lib/db — PostgreSQL 커넥션 풀 + 쿼리 헬퍼
 //
-// DATABASE_URL 환경변수로 접속한다. users / diary_entries 테이블 접근 함수를 제공한다.
-// 스키마는 db/migrations/001_init.sql 참고.
+// DATABASE_URL 환경변수로 접속한다. diary.users / diary.diary_entries 테이블 접근 함수를 제공한다.
+// 이 앱의 테이블은 전용 diary 스키마에 있다(같은 DB의 다른 앱과 격리). db/migrations/001_init.sql 참고.
 
 import { Pool, type QueryResultRow } from "pg";
 
@@ -15,7 +15,11 @@ function getPool(): Pool {
     if (!connectionString) {
       throw new Error("DATABASE_URL 환경변수가 설정되지 않았습니다.");
     }
-    globalForDb.__diaryPool = new Pool({ connectionString });
+    // Supabase(및 대다수 호스팅 PostgreSQL)는 SSL 연결이 필수다.
+    globalForDb.__diaryPool = new Pool({
+      connectionString,
+      ssl: { rejectUnauthorized: false },
+    });
   }
   return globalForDb.__diaryPool;
 }
@@ -56,7 +60,7 @@ export interface DiaryRecord {
  */
 export async function upsertUser(profile: GoogleUserProfile): Promise<number> {
   const rows = await query<{ id: string }>(
-    `INSERT INTO users (google_sub, email, name, image)
+    `INSERT INTO diary.users (google_sub, email, name, image)
      VALUES ($1, $2, $3, $4)
      ON CONFLICT (google_sub)
      DO UPDATE SET email = EXCLUDED.email,
@@ -100,7 +104,7 @@ export async function insertDiaryEntry(input: {
   empathy_message: string | null;
 }): Promise<DiaryRecord> {
   const rows = await query<DiaryRow>(
-    `INSERT INTO diary_entries (user_id, content, emotion, empathy_message)
+    `INSERT INTO diary.diary_entries (user_id, content, emotion, empathy_message)
      VALUES ($1, $2, $3, $4)
      RETURNING id, content, emotion, empathy_message, created_at`,
     [input.user_id, input.content, input.emotion, input.empathy_message],
@@ -112,7 +116,7 @@ export async function insertDiaryEntry(input: {
 export async function listDiaryEntries(user_id: number): Promise<DiaryRecord[]> {
   const rows = await query<DiaryRow>(
     `SELECT id, content, emotion, empathy_message, created_at
-     FROM diary_entries
+     FROM diary.diary_entries
      WHERE user_id = $1
      ORDER BY created_at DESC`,
     [user_id],
