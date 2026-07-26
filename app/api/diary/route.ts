@@ -5,7 +5,7 @@
 
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { analyzeEntry } from "@/lib/ai";
+import { analyzeEntry, computeSafety } from "@/lib/ai";
 import { insertDiaryEntry, listDiaryEntries, updateDiaryAnalysis } from "@/lib/db";
 
 // 무료 모델 폴백 체인이 여러 모델을 순차 시도하면 수십 초가 걸릴 수 있다.
@@ -135,7 +135,13 @@ export async function GET() {
   }
 
   try {
-    const entries = await listDiaryEntries(session.user.id);
+    const records = await listDiaryEntries(session.user.id);
+    // 위기 안내(safety)는 저장하지 않고 원문에서 값싸게 재계산해 목록에도 포함한다.
+    // → 과거의 위기 일기를 히스토리에서 다시 볼 때도 안전 안내가 노출된다.
+    const entries: DiaryEntry[] = records.map((r) => ({
+      ...r,
+      safety: computeSafety(r.content),
+    }));
     return NextResponse.json({ entries }, { status: 200 });
   } catch {
     return errorResponse(500, "INTERNAL_ERROR", "일기 목록을 불러오지 못했습니다.");

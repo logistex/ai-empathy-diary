@@ -48,9 +48,11 @@
 }
 ```
 
-- `safety`는 **응답 시점에 파생**되는 값으로, DB 컬럼으로 저장하지 않는다(데이터 모델 확정본 유지).
+- `safety`는 **응답 시점에 원문에서 파생**되는 값으로, DB 컬럼으로 저장하지 않는다(데이터 모델 확정본 유지).
+- 작성(POST)·재분석·**목록(GET)** 응답 모두에 포함된다. AI 호출 없이 키워드로 계산하므로 목록에서도 값싸게 재노출한다.
 - `flagged=false`이면 `resources`는 빈 배열.
-- 프런트(2C)는 `flagged=true`일 때 공감 메시지 카드와 함께 `resources`를 안내 UI로 노출한다.
+- `flagged=true`이면 `resources`에 안내 목록(예: 자살예방 109, 정신건강 1577-0199, 청소년 1388)을 담는다.
+- 프런트는 `flagged=true`일 때 일기 카드와 함께 `resources`를 안내 UI로 노출한다(작성·히스토리 모두).
 
 ---
 
@@ -152,7 +154,7 @@
 | `entries[].empathy_message` | string \| null | 공감 메시지(미분석 시 null) |
 | `entries[].model` | string \| null | 분석에 성공한 무료 모델 ID(미분석 시 null) |
 | `entries[].created_at` | string | 생성 시각(ISO 8601) |
-| `entries[].safety` | object \| (생략) | 선택. 목록에서는 생략 가능. 위기 안내는 주로 작성(POST) 시점에 노출한다. |
+| `entries[].safety` | object | 포함. 원문 기반으로 재계산해 목록에도 안전 안내를 담는다(과거 위기 일기를 다시 볼 때도 지지 노출). |
 
 > `emotion`/`model`이 `null`인 항목은 재분석 엔드포인트(3장)로 다시 분석할 수 있다.
 

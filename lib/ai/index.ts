@@ -33,6 +33,7 @@ export interface AnalyzeResult {
 const SAFETY_RESOURCES: SafetyResource[] = [
   { name: "자살예방 상담전화", phone: "109" },
   { name: "정신건강 상담전화", phone: "1577-0199" },
+  { name: "청소년 상담전화", phone: "1388" },
 ];
 
 /**
@@ -54,8 +55,14 @@ const CRISIS_PATTERNS: RegExp[] = [
   /더\s*이상.*못\s*살|못\s*버티겠|못\s*살겠|못\s*견디겠/,
 ];
 
-function detectCrisis(content: string): boolean {
-  return CRISIS_PATTERNS.some((re) => re.test(content));
+/**
+ * 원문에서 위기 신호를 감지해 안전 안내(safety)를 계산한다.
+ * AI 호출 없이 원문만으로 동작하므로, 작성(POST)뿐 아니라
+ * 히스토리 조회(GET)에서도 값싸게 재계산해 위기 안내를 노출할 수 있다.
+ */
+export function computeSafety(content: string): Safety {
+  const flagged = CRISIS_PATTERNS.some((re) => re.test(content));
+  return { flagged, resources: flagged ? SAFETY_RESOURCES : [] };
 }
 
 /** 모델이 코드펜스(```json … ```)로 감싸 응답하는 경우를 대비해 벗겨낸다. */
@@ -111,11 +118,8 @@ const SAFETY_APPENDIX =
  */
 export async function analyzeEntry(content: string): Promise<AnalyzeResult> {
   // 위기 감지는 AI 성공 여부와 무관하게 원문 기준으로 먼저 계산한다.
-  const flagged = detectCrisis(content);
-  const safety: Safety = {
-    flagged,
-    resources: flagged ? SAFETY_RESOURCES : [],
-  };
+  const safety = computeSafety(content);
+  const flagged = safety.flagged;
 
   const messages: ChatMessage[] = [
     { role: "system", content: SYSTEM_PROMPT },
