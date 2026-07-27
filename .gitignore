@@ -29,3 +29,4 @@ next-env.d.ts
 # 에디터
 .vscode/
 .idea/
+.env*
